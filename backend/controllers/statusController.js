@@ -40,9 +40,16 @@ const createStatus = async (req, res) => {
 
     const populateStatus = await Status.findOne(status?._id)
       .populate("user", "username profilePicture")
-      .populate("viewers", "username profilePicture")
-      .lean();
+      .populate("viewers", "username profilePicture");
 
+    if (req.io && req.socketUserMap) {
+      //  boardcast to all users
+      for (const [connectedUserId, socketId] of req.socketUserMap) {
+        if (connectedUserId !== userId) {
+          req.io.to(socketId).emit("new_status", populateStatus);
+        }
+      }
+    }
     return response(res, 200, "Status sent successfully", populateStatus);
   } catch (error) {
     console.log(error);
@@ -81,6 +88,24 @@ const viewStatus = async (req, res) => {
     const updatedStatus = await Status.findById(statusId)
       .populate("user", "username profilePicture")
       .populate("viewers", "username profilePicture");
+
+    if (req.io && req.socketUserMap) {
+      const statusOwnerSocketId = req.socketUserMap.get(
+        status.user._id.toString()
+      );
+      if (statusOwnerSocketId) {
+        const viewData = {
+          statusId,
+          viewerId: userId,
+          totalViewers: updatedStatus.viewers.length,
+          viewers: updatedStatus.viewers,
+        };
+        req.io.to(statusOwnerSocketId).emit("status_viewed", viewData);
+      } else {
+        console.log("Status owner socket not found");
+      }
+    }
+
     return response(res, 200, "Status viewed successfully");
   } catch (error) {
     console.log(error);
@@ -99,6 +124,13 @@ const deleteStatus = async (req, res) => {
       return response(res, 401, "Unauthorized");
     }
     await status.deleteOne();
+    if (req.io && req.socketUserMap) {
+      for (const [connectedUserId, socketId] of req.socketUserMap) {
+        if (connectedUserId !== userId) {
+          req.io.to(socketId).emit("status_deleted", status);
+        }
+      }
+    }
     return response(res, 200, "Status deleted successfully");
   } catch (error) {
     console.log(error);

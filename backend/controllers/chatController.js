@@ -55,6 +55,15 @@ const sendMessage = async (req, res) => {
       .populate("receiver", "username profilePicture")
       .lean();
 
+    if (req.io && req.socketUserMap) {
+      const receiverSocketId = req.socketUserMap.get(receiverId);
+      if (receiverSocketId) {
+        req.io.to(receiverSocketId).emit("receive_message", populateMessage);
+        message.messageStatus = "delivered";
+        await message.save();
+      }
+    }
+
     return response(res, 200, "Message sent successfully", populateMessage);
   } catch (error) {
     console.log(error);
@@ -141,6 +150,20 @@ const markAsRead = async (req, res) => {
         },
       }
     );
+
+    if (req.io && req.socketUserMap) {
+      for (const message of messages) {
+        const senderSocketId = req.socketUserMap.get(message.sender.toString());
+        if (senderSocketId) {
+          const updateMessage = {
+            _id: message._id,
+            messageStatus: "read",
+          };
+          req.io.to(senderSocketId).emit("message_read", updateMessage);
+          await message.save();
+        }
+      }
+    }
     return response(res, 200, "Mark as read successfully", messages);
   } catch (error) {}
 };
@@ -157,6 +180,14 @@ const deleteMessage = async (req, res) => {
       return response(res, 401, "Unauthorized");
     }
     await message.deleteOne();
+    if (req.io && req.socketUserMap) {
+      const receiverSocketId = req.socketUserMap.get(
+        message.receiver.toString()
+      );
+      if (receiverSocketId) {
+        req.io.to(receiverSocketId).emit("message_deleted", messageId);
+      }
+    }
     return response(res, 200, "Message deleted successfully");
   } catch (error) {
     console.log(error);
