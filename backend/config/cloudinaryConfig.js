@@ -12,10 +12,10 @@ cloudinary.config({
 
 const uploadFileToCloudinary = (file) => {
   const options = {
-    resource_type: file.mimetype.startWith("video") ? "video" : "image",
+    resource_type: file.mimetype.startsWith("video") ? "video" : "image",
   };
   return new Promise((resolve, reject) => {
-    const uploader = file.mimetype.startWith("video")
+    const uploader = file.mimetype.startsWith("video")
       ? cloudinary.uploader.upload_large
       : cloudinary.uploader.upload;
 

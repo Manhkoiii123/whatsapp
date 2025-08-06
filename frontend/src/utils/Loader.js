@@ -1,31 +1,32 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { FaSpinner } from "react-icons/fa";
+import { FaWhatsapp } from "react-icons/fa";
 
-export default function Spinner({ size = "medium", color = "light" }) {
-  const sizeClasses = {
-    small: "text-xs",
-    medium: "text-lg",
-    large: "text-2xl",
-  };
-
-  const colorClasses = {
-    light: "text-white",
-    dark: "text-gray-800",
-  };
-
+export default function Loader({ progress = 0 }) {
   return (
-    <div className="flex items-center justify-center space-x-2">
+    <div className="fixed inset-0 bg-gradient-to-br from-green-400 to-blue-500 flex flex-col items-center justify-center z-50">
       <motion.div
-        className={`${sizeClasses[size]} ${colorClasses[color]} inline-flex`}
-        animate={{ rotate: 360 }}
-        transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{
+          duration: 0.5,
+          type: "spring",
+          stiffness: 260,
+          damping: 20,
+        }}
+        className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8"
       >
-        <FaSpinner />
+        <FaWhatsapp className="w-16 h-16 text-green-500" />
       </motion.div>
-      <span className={`${colorClasses[color]} text-md font-medium`}>
-        Loading...
-      </span>
+      <div className="w-64 bg-white bg-opacity-30 rounded-full h-2 mb-4">
+        <motion.div
+          className="bg-white h-full rounded-full"
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.5 }}
+        />
+      </div>
+      <p className="text-white text-lg font-semibold">Loading... {progress}%</p>
     </div>
   );
 }

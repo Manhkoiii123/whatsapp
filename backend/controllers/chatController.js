@@ -23,9 +23,9 @@ const sendMessage = async (req, res) => {
         return response(res, 400, "Failed to upload file to cloudinary");
       }
       imageOrVideoUrl = uploadFile?.secure_url;
-      if (file.mimetype.startWith("video")) {
+      if (file.mimetype.startsWith("video")) {
         contentType = "video";
-      } else if (file.mimetype.startWith("image")) {
+      } else if (file.mimetype.startsWith("image")) {
         contentType = "image";
       } else {
         return response(res, 400, "Invalid file type");
