@@ -1,8 +1,7 @@
 const express = require("express");
 const statusController = require("../controllers/statusController");
 const authMiddleware = require("../middleware/authMiddleware");
-const multerMiddleware = require("../middleware/multerMiddleware");
-const cloudinaryConfig = require("../config/cloudinaryConfig");
+const { multerMiddleware } = require("../config/cloudinaryConfig");
 
 const router = express.Router();
 
