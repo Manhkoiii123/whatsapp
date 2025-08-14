@@ -52,7 +52,7 @@ export const useChatStore = create((set, get) => ({
     });
 
     // handle remove message from local state
-    socket.on("message_deleted", ({ messageId }) => {
+    socket.on("message_deleted", (messageId) => {
       set((state) => ({
         messages: state.messages.filter((m) => m._id !== messageId),
       }));
@@ -98,9 +98,9 @@ export const useChatStore = create((set, get) => ({
           socket.emit("get_user_status", otherUser._id, (status) => {
             set((state) => {
               const newOnlineUsers = new Map(state.onlineUsers);
-              newOnlineUsers.set(state.useId, {
-                isOnline: state.online,
-                lastSeen: state.lastSeen,
+              newOnlineUsers.set(status.userId, {
+                online: status.online,
+                lastSeen: status.lastSeen,
               });
               return {
                 onlineUsers: newOnlineUsers,
@@ -127,7 +127,16 @@ export const useChatStore = create((set, get) => ({
 
   // fetch message for a conversation
   fetchMessages: async (conversationId) => {
-    if (!conversationId) return;
+    if (!conversationId) {
+      set({
+        messages: [],
+        loading: false,
+        error: null,
+        currentConversation: null,
+      });
+      return [];
+    }
+
     set({ loading: true, error: null });
     try {
       const { data } = await axiosInstance.get(
@@ -147,7 +156,80 @@ export const useChatStore = create((set, get) => ({
       return null;
     }
   },
-  sendMessage: async (formData) => {},
+  sendMessage: async (formData) => {
+    const senderId = formData.get("senderId");
+    const receiverId = formData.get("receiverId");
+    const messageStatus = formData.get("messageStatus");
+    const content = formData.get("content");
+    const media = formData.get("media");
+    const socket = getSocket();
+    const { conversations } = get();
+    let conversationId = null;
+    let conversation;
+    if (conversations?.data?.length > 0) {
+      conversation = conversations.data.find(
+        (c) =>
+          c.participants.some((p) => p._id === senderId) &&
+          c.participants.some((p) => p._id === receiverId)
+      );
+    }
+    if (conversation) {
+      conversationId = conversation._id;
+      set({
+        currentConversation: conversation._id,
+      });
+    }
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage = {
+      _id: tempId,
+      sender: {
+        _id: senderId,
+      },
+      receiver: {
+        _id: receiverId,
+      },
+      conversation: conversationId,
+      content,
+      contentType: media
+        ? media.type.startsWith("image")
+          ? "image"
+          : "video"
+        : "text",
+      imageOrVideoUrl:
+        media && typeof media === "string" ? URL.createObjectURL(media) : null,
+      createdAt: new Date().toISOString(),
+      messageStatus,
+    };
+    set((state) => ({
+      messages: [...state.messages, optimisticMessage],
+    }));
+    try {
+      const { data } = await axiosInstance.post(
+        `/chat/send-message`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      const messageData = data.data || data;
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === tempId ? messageData : m
+        ),
+      }));
+      return messageData;
+    } catch (error) {
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m._id === tempId ? { ...m, messageStatus: "failed" } : m
+        ),
+        error: error.message,
+      }));
+      throw error;
+    }
+  },
 
   receiveMessage: async (message) => {
     if (!message) return;
@@ -248,7 +330,7 @@ export const useChatStore = create((set, get) => ({
       socket.emit("add_reaction", {
         messageId,
         emoji,
-        userId: currentUser?._id,
+        reactionUserId: currentUser?._id,
       });
     }
   },
@@ -284,7 +366,7 @@ export const useChatStore = create((set, get) => ({
   isUserOnline: (userId) => {
     if (!userId) return false;
     const { onlineUsers } = get();
-    return onlineUsers.get(userId)?.isOnline || false;
+    return onlineUsers.get(userId)?.online || false;
   },
   getUserLastSeen: (userId) => {
     if (!userId) return false;

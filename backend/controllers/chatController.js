@@ -23,9 +23,9 @@ const sendMessage = async (req, res) => {
         return response(res, 400, "Failed to upload file to cloudinary");
       }
       imageOrVideoUrl = uploadFile?.secure_url;
-      if (file.mimetype.startsWith("video")) {
+      if (file.mimetype.startsWith("video/")) {
         contentType = "video";
-      } else if (file.mimetype.startsWith("image")) {
+      } else if (file.mimetype.startsWith("image/")) {
         contentType = "image";
       } else {
         return response(res, 400, "Invalid file type");
@@ -156,7 +156,8 @@ const markAsRead = async (req, res) => {
         const senderSocketId = req.socketUserMap.get(message.sender.toString());
         if (senderSocketId) {
           const updateMessage = {
-            _id: message._id,
+            messageIds: [message._id], // luôn là mảng để BE dùng $in
+            senderId: message.sender, // hoặc currentUserId
             messageStatus: "read",
           };
           req.io.to(senderSocketId).emit("message_read", updateMessage);

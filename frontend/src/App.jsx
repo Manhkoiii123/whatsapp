@@ -10,16 +10,23 @@ import Setting from "./pages/SettingSection/Setting";
 import useUserStore from "./store/useUserStore";
 import { useEffect } from "react";
 import { disconnectSocket, initializeSocket } from "./services/chat.service";
+import { useChatStore } from "./store/chatStore";
 function App() {
   const { user } = useUserStore();
+  const { setCurrentUser, initsocketListeners, cleanUp } = useChatStore();
   useEffect(() => {
     if (user?._id) {
       const socket = initializeSocket();
+      if (socket) {
+        setCurrentUser(user);
+        initsocketListeners();
+      }
     }
     return () => {
+      cleanUp();
       disconnectSocket();
     };
-  }, [user]);
+  }, [user, setCurrentUser, initsocketListeners, cleanUp]);
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} />

@@ -63,7 +63,7 @@ const initializeSocket = (server) => {
     });
 
     // update message as read and noti sender user
-    socket.on("message_read", async (messageIds, senderId) => {
+    socket.on("message_read", async ({ messageIds, senderId }) => {
       try {
         await Message.updateMany(
           {
@@ -85,7 +85,7 @@ const initializeSocket = (server) => {
           });
         }
       } catch (error) {
-        console.log(error);
+        console.log("error", error);
       }
     });
 
@@ -143,14 +143,13 @@ const initializeSocket = (server) => {
               message.reactions[existingIndex].emoji = emoji;
             }
           } else {
-            // add
             message.reactions.push({
               user: reactionUserId,
               emoji,
             });
           }
           await message.save();
-          const populateMessage = await Message.findOne(message?._id)
+          const populateMessage = await Message.findById(messageId)
             .populate("sender", "username profilePicture")
             .populate("receiver", "username profilePicture")
             .populate("reactions.user", "username ");
@@ -191,7 +190,7 @@ const initializeSocket = (server) => {
           typingUsers.delete(userId);
         }
         await User.findByIdAndUpdate(userId, {
-          isOnline: falsel,
+          isOnline: false,
           lastSeen: Date.now(),
         });
         io.emit("user_status", {
